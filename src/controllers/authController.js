@@ -1,36 +1,88 @@
-const users = require('../dao/userDb');
+const usersDao = require('../dao/userDao');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const authController = {
-    login: (req, res) => {
+
+    // LOGIN FUNCTION
+    login: async (req, res) => {
         const { email, password } = req.body;
-        if(!email || !password) {
-            return res.status(400).json({error: "Email and Password are required"});
+
+        if (!email || !password) {
+            return res.status(400).json({
+                error: "Email and Password are required"
+            });
         }
-        const user = users.find(u => u.email === email && u.password === password);
-        if(!user) {
-            return res.status(401).json({error: "Invalid credentials"});
+
+        const user = await usersDao.findByEmail(email);
+
+        if (!user) {
+            return res.status(401).json({
+                error: "Invalid credentials"
+            });
         }
-        console.log("Logging in user:", email);
-        return res.status(200).json({ message: "Login successful", userId: user.id });
+
+        const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordMatch) {
+            return res.status(401).json({
+                error: "Invalid credentials"
+            });
+        }
+
+        // CREATE JWT
+        const token = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        //  SET COOKIE
+        res.cookie('jwtToken', token, {
+            httpOnly: true,
+            secure: false, // true only in HTTPS
+            sameSite: 'strict'
+        });
+
+        //  SEND RESPONSE
+        return res.status(200).json({
+            message: "Login successful"
+            
+        });
     },
-    register: (req, res) => {
+
+    // REGISTER FUNCTION
+    register: async (req, res) => {
         const { username, email, password } = req.body;
-        if(!username || !email || !password) {
-            return res.status(400).json({ error: "All fields are required" });
+
+        if (!username || !email || !password) {
+            return res.status(400).json({
+                error: "All fields are required"
+            });
         }
-        const userExists = users.find(user => user.email === email);
-        if(userExists) {
-            return res.status(409).json({ error: "User already exists" });
+
+        const userExists = await usersDao.findByEmail(email);
+
+        if (userExists) {
+            return res.status(409).json({
+                error: "User already exists"
+            });
         }
-        const newUser = {
-            id: users.length + 1,
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const newUser = await usersDao.create({
             username: username,
             email: email,
-            password: password
-        };
-        users.push(newUser);
-        console.log("Registering user:", username, email);
-        return res.status(201).json({ message: "User registered successfully", userId: newUser.id });
-    },
+            password: hashedPassword
+        });
+
+        return res.status(201).json({
+            message: "User registered successfully",
+            userId: newUser._id
+        });
+    }
 };
+
 module.exports = authController;
