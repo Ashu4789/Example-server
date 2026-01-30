@@ -82,9 +82,29 @@ const authController = {
             password: hashedPassword
         });
 
+        // CREATE JWT (log the user in immediately after registration)
+        const token = jwt.sign(
+            { userId: newUser._id, email: newUser.email },
+            process.env.JWT_SECRET || 'default_jwt_secret',
+            { expiresIn: '1h' }
+        );
+
+        // SET COOKIE
+        res.cookie('jwtToken', token, {
+            httpOnly: true,
+            secure: false, // true only in HTTPS
+            sameSite: 'strict'
+        });
+
+        // RETURN USER INFO + token (frontend can use cookie or token)
         return res.status(201).json({
             message: "User registered successfully",
-            userId: newUser._id
+            user: {
+                id: newUser._id,
+                username: newUser.username,
+                email: newUser.email
+            },
+            token
         });
     }
 ,
