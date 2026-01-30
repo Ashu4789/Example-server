@@ -2,9 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
 const appRoutes = require('./src/routes/authRoutes');
 const groupRoutes = require('./src/routes/groupRoutes');
+const corsOptions = {
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+};
 
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log("MongoDB Connected"))
@@ -14,6 +19,7 @@ mongoose.connect(process.env.MONGODB_URI)
   });
 
 const app = express();
+app.use(cors(corsOptions));
 app.use(cookieParser());
 
 app.use(express.json());
