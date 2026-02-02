@@ -2,20 +2,23 @@ const usersDao = require('../dao/userDao');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const {OAuth2Client} = require('google-auth-library');
+const { validationResult } = require('express-validator');
 
 
 const authController = {
 
     // LOGIN FUNCTION
     login: async (req, res) => {
-        const { email, password } = req.body;
+        // VALIDATION ERRORS FROM express-validator
+        const errors = validationResult(req);
 
-        if (!email || !password) {
+        if (!errors.isEmpty()) {
             return res.status(400).json({
-                error: "Email and Password are required"
+                errors: errors.array()
             });
         }
 
+        const { email, password } = req.body;
         const user = await usersDao.findByEmail(email);
 
         if (!user) {
