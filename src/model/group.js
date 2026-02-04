@@ -4,7 +4,6 @@ const userSchema=new mongoose.Schema({
     name:{type:String,required:true},
     description:{type:String,required:false},
     adminEmail:{type:String,required:true},
-    amount:{type:Number,required:true},
     creatAt:{type:Date,default:Date.now()},
     membersEmail:[String],
     thumbnail:{type:String,require:false},
