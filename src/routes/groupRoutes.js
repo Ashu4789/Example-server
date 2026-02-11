@@ -3,17 +3,22 @@ const groupController = require('../controllers/groupController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeMiddleware = require('../middlewares/authorizeMiddleware');
 
+const checkGroupRole = require('../middlewares/groupRoleMiddleware');
+
 const router = express.Router();
 
 router.use(authMiddleware.protect);
 
 router.post('/create', authorizeMiddleware('group:create'), groupController.create);
-router.put('/update', authorizeMiddleware('group:update'), groupController.update);
-router.patch('/members/add', authorizeMiddleware('group:update'), groupController.addMembers);
-router.patch('/members/remove', authorizeMiddleware('group:update'), groupController.removeMembers);
-router.get('/my-groups', authorizeMiddleware('group:view'), groupController.getGroupsByUser);
-router.get('/status', authorizeMiddleware('group:view'), groupController.getGroupsByPaymentStatus);
-router.get('/:groupId', authorizeMiddleware('group:view'), groupController.getGroupById);
-router.get('/:groupId/audit', authorizeMiddleware('group:view'), groupController.getAudit);
+router.put('/update', checkGroupRole(['admin']), groupController.update);
+router.delete('/:groupId', checkGroupRole(['admin']), groupController.deleteGroup);
+router.patch('/members/add', checkGroupRole(['admin']), groupController.addMembers);
+router.patch('/members/remove', checkGroupRole(['admin']), groupController.removeMembers);
+router.patch('/members/role', checkGroupRole(['admin']), groupController.updateMemberRole);
+
+router.get('/my-groups', groupController.getGroupsByUser);
+router.get('/status', groupController.getGroupsByPaymentStatus);
+router.get('/:groupId', checkGroupRole(['admin', 'manager', 'viewer']), groupController.getGroupById);
+router.get('/:groupId/audit', checkGroupRole(['admin', 'manager', 'viewer']), groupController.getAudit);
 
 module.exports = router;

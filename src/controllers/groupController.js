@@ -7,16 +7,23 @@ const groupController = {
             const user = request.user;
             const { name, description, membersEmail, thumbnail } = request.body;
 
-            let allMembers = [user.email];
+            const creatorEmail = user.email.toLowerCase();
+            // Creator is always admin of the group
+            let allMembers = [{ email: creatorEmail, role: 'admin' }];
+
             if (membersEmail && Array.isArray(membersEmail)) {
-                allMembers = [...new Set([...allMembers, ...membersEmail])];
+                const additionalMembers = membersEmail
+                    .map(email => email.trim().toLowerCase())
+                    .filter(email => email !== creatorEmail)
+                    .map(email => ({ email, role: 'viewer' }));
+                allMembers = [...allMembers, ...additionalMembers];
             }
 
             const newGroup = await groupDao.createGroup({
                 name,
                 description,
-                adminEmail: user.email,
-                membersEmail: allMembers,
+                adminEmail: creatorEmail,
+                members: allMembers,
                 thumbnail,
                 paymentStatus: {
                     amount: 0,
@@ -31,8 +38,8 @@ const groupController = {
                 groupId: newGroup._id
             });
         } catch (error) {
-            console.error(error);
-            response.status(500).json({ message: "Internal server error" });
+            console.error("Group Create Error:", error);
+            response.status(500).json({ message: "Internal server error", details: error.message });
         }
     },
 
@@ -50,11 +57,17 @@ const groupController = {
 
     addMembers: async (request, response) => {
         try {
-            const { groupId, emails } = request.body;
-            const updatedGroup = await groupDao.addMembers(groupId, ...emails);
+            const { groupId, emails, members } = request.body;
+            // Support both old array of strings and new array of objects
+            const membersToAdd = members
+                ? members.map(m => ({ email: m.email.toLowerCase().trim(), role: m.role }))
+                : emails.map(email => ({ email: email.toLowerCase().trim(), role: 'viewer' }));
+
+            const updatedGroup = await groupDao.addMembers(groupId, ...membersToAdd);
             response.status(200).json(updatedGroup);
         } catch (error) {
-            response.status(500).json({ message: "Error adding members" });
+            console.error("Add Members Error:", error);
+            response.status(500).json({ message: "Error adding members", details: error.message });
         }
     },
 
@@ -70,15 +83,10 @@ const groupController = {
 
     getGroupsByUser: async (request, response) => {
         try {
-            let { email } = request.user;
-            const { adminId, id } = request.user;
+            const { email } = request.user;
 
-            if (adminId && adminId !== id) {
-                const adminUser = await require("../dao/userDao").findById(adminId);
-                if (adminUser) {
-                    email = adminUser.email;
-                }
-            }
+            // Note: We removed the adminId logic here to ensure users ONLY see 
+            // groups they are personally added to as members.
 
             const page = parseInt(request.query.page) || 1;
             const limit = parseInt(request.query.limit) || 10;
@@ -130,15 +138,34 @@ const groupController = {
 
     getGroupById: async (request, response) => {
         try {
-            const { groupId } = request.params;
-            const group = await groupDao.findById(groupId);
-            if (!group) {
-                return response.status(404).json({ message: "Group not found" });
-            }
+            // Group is already fetched by checkGroupRole middleware
+            const group = request.currentGroup;
             response.status(200).json(group);
         } catch (error) {
             console.error(error);
             response.status(500).json({ message: "Error fetching group" });
+        }
+    },
+
+    deleteGroup: async (request, response) => {
+        try {
+            const { groupId } = request.params;
+            await groupDao.deleteGroup(groupId);
+            response.status(200).json({ message: "Group deleted successfully" });
+        } catch (error) {
+            console.error("Delete Group Error:", error);
+            response.status(500).json({ message: "Error deleting group" });
+        }
+    },
+
+    updateMemberRole: async (request, response) => {
+        try {
+            const { groupId, email, newRole } = request.body;
+            const group = await groupDao.updateMemberRole(groupId, email, newRole);
+            response.status(200).json(group);
+        } catch (error) {
+            console.error("Update Role Error:", error);
+            response.status(500).json({ message: "Error updating member role" });
         }
     }
 };

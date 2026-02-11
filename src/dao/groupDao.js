@@ -18,20 +18,21 @@ const groupDao = {
         }, { new: true });
     },
 
-    addMembers: async (groupId, ...membersEmails) => {
+    addMembers: async (groupId, ...members) => {
+        // members should be array of { email, role }
         return await Group.findByIdAndUpdate(groupId, {
-            $addToSet: { membersEmail: { $each: membersEmails } }
+            $addToSet: { members: { $each: members } }
         }, { new: true });
     },
 
     removeMembers: async (groupId, ...membersEmails) => {
         return await Group.findByIdAndUpdate(groupId, {
-            $pull: { membersEmail: { $in: membersEmails } }
+            $pull: { members: { email: { $in: membersEmails } } }
         }, { new: true });
     },
 
     getGroupByEmail: async (email) => {
-        return await Group.find({ membersEmail: email });
+        return await Group.find({ "members.email": email });
     },
 
     getGroupByStatus: async (status) => {
@@ -55,22 +56,29 @@ const groupDao = {
 
     // Default sorting order of createdAt is descending order (-1)
     getGroupsPaginated: async (email, limit, skip, sortOptions = { createdAt: -1 }) => {
+        const lowerEmail = email.toLowerCase();
         const [groups, totalCount] = await Promise.all([
-            // Find groups with given email,
-            // sort them to preserve order across
-            // pagination requests, and then perform
-            // skip and limit to get results of desired page.
-            Group.find({ membersEmail: email })
+            Group.find({ "members.email": lowerEmail })
                 .sort(sortOptions)
                 .skip(skip)
                 .limit(limit),
 
-            // Count how many records are there in the collection
-            // with the given email
-            Group.countDocuments({ membersEmail: email }),
+            Group.countDocuments({ "members.email": email }),
         ]);
 
         return { groups, totalCount };
+    },
+
+    deleteGroup: async (groupId) => {
+        return await Group.findByIdAndDelete(groupId);
+    },
+
+    updateMemberRole: async (groupId, email, newRole) => {
+        return await Group.findOneAndUpdate(
+            { _id: groupId, "members.email": email },
+            { $set: { "members.$.role": newRole } },
+            { new: true }
+        );
     }
 };
 
