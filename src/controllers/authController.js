@@ -18,15 +18,18 @@ const authController = {
 
     const user = await userDao.findByEmail(email);
 
-    const isPasswordMatched = await bcrypt.compare(password, user.password);
+    const isPasswordMatched = await bcrypt.compare(password, user?.password);
     if (user && isPasswordMatched) {
+      user.role = user.role ? user.role : ADMIN_ROLE;
+      user.adminId = user.adminId ? user.adminId : user._id;
+
       const token = jwt.sign({
         name: user.name,
         email: user.email,
         id: user._id,
         // The logic below ensure backward compatibility.
-        role: user.role ? user.role : ADMIN_ROLE,
-        adminId: user.adminId ? user.adminId : user._id,
+        role: user.role,
+        adminId: user.adminId,
       }, process.env.JWT_SECRET,
         { expiresIn: '1h' }
       );
