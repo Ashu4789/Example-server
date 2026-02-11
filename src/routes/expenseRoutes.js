@@ -6,6 +6,9 @@ const router = express.Router();
 
 router.use(authMiddleware.protect);
 
+// Ping route for debugging
+router.get('/ping', (req, res) => res.json({ message: 'pong' }));
+
 router.post('/add', expenseController.addExpense);
 router.get('/group/:groupId', expenseController.getGroupExpenses);
 router.get('/group/:groupId/summary', expenseController.getGroupSummary);
