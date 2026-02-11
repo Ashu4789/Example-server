@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { validationResult } = require('express-validator');
 const { ADMIN_ROLE } = require('../utility/userRoles');
+const crypto = require('crypto');
 
 const authController = {
   login: async (request, response) => {
@@ -52,41 +53,90 @@ const authController = {
   },
 
   register: async (request, response) => {
-    const { name, email, password } = request.body;
+    try {
+      const { name, email, password } = request.body;
 
-    if (!name || !email || !password) {
-      return response.status(400).json({
-        message: 'Name, Email, Password are required'
+      if (!name || !email || !password) {
+        return response.status(400).json({
+          message: 'Name, Email, Password are required'
+        });
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
+      const user = await userDao.create({
+        name: name,
+        email: email,
+        password: hashedPassword,
+        role: ADMIN_ROLE.toLowerCase()
+      });
+
+      return response.status(200).json({
+        message: 'User registered',
+        user: { id: user._id }
+      });
+    } catch (error) {
+      if (error.code === 'USER_EXIST') {
+        return response.status(400).json({
+          message: 'User with the email already exist'
+        });
+      }
+      console.error(error);
+      return response.status(500).json({
+        message: "Internal server error"
       });
     }
+  },
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+  forgotPassword: async (request, response) => {
+    try {
+      const { email } = request.body;
+      const user = await userDao.findByEmail(email);
 
-    userDao.create({
-      name: name,
-      email: email,
-      password: hashedPassword,
-      role: ADMIN_ROLE.toLowerCase()
-    })
-      .then(u => {
-        return response.status(200).json({
-          message: 'User registered',
-          user: { id: u._id }
-        });
-      })
-      .catch(error => {
-        if (error.code === 'USER_EXIST') {
-          console.log(error);
-          return response.status(400).json({
-            message: 'User with the email already exist'
-          });
-        } else {
-          return response.status(500).json({
-            message: "Internal server error"
-          });
-        }
-      });
+      if (!user) {
+        // We don't want to leak if a user exists or not, but for this training app, a clear message is fine.
+        return response.status(404).json({ message: "User not found" });
+      }
+
+      const token = crypto.randomBytes(20).toString('hex');
+      const expires = Date.now() + 3600000; // 1 hour
+
+      await userDao.setResetToken(email, token, expires);
+
+      const emailService = require('../services/emailService');
+      const resetUrl = `${process.env.CLIENT_URL}/reset-password/${token}`;
+
+      const emailBody = `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\nPlease click on the following link, or paste this into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n`;
+
+      await emailService.send(user.email, 'Password Reset Request', emailBody);
+
+      response.status(200).json({ message: "Reset link sent to email" });
+    } catch (error) {
+      console.error(error);
+      response.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  resetPassword: async (request, response) => {
+    try {
+      const { token, password } = request.body;
+      const user = await userDao.findByResetToken(token);
+
+      if (!user) {
+        return response.status(400).json({ message: "Password reset token is invalid or has expired." });
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
+      await userDao.updatePassword(user._id, hashedPassword);
+
+      response.status(200).json({ message: "Password has been reset successfully." });
+    } catch (error) {
+      console.error(error);
+      response.status(500).json({ message: "Internal server error" });
+    }
   },
 
   isUserLoggedIn: async (request, response) => {

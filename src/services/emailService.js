@@ -11,7 +11,7 @@ const emailClient = nodemailer.createTransport({
 const emailService = {
     send: async (to, subject, body) => {
         const emailOptions = {
-            from: process.env.GMAIL_EMAIL,
+            from: process.env.GOOGLE_EMAIL,
             to: to,
             subject: subject,
             text: body

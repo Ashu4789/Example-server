@@ -10,6 +10,36 @@ const userDao = {
     return await User.findById(id);
   },
 
+  findByResetToken: async (token) => {
+    return await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+  },
+
+  setResetToken: async (email, token, expires) => {
+    return await User.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          resetPasswordToken: token,
+          resetPasswordExpires: expires
+        }
+      },
+      { new: true }
+    );
+  },
+
+  updatePassword: async (userId, hashedPassword) => {
+    return await User.updateOne(
+      { _id: userId },
+      {
+        $set: { password: hashedPassword },
+        $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 }
+      }
+    );
+  },
+
   create: async (userData) => {
     const newUser = new User(userData);
     try {
