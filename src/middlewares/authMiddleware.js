@@ -23,11 +23,11 @@ const authMiddleware = {
 
         } catch (error) {
             console.log(error);
-            return response.status(500).json({
-                error: 'Internal server error'
+            response.status(500).json({
+                message: 'Internal server error'
             });
         }
-    }
+    },
 };
 
 module.exports = authMiddleware;
