@@ -70,10 +70,20 @@ const groupController = {
 
     getGroupsByUser: async (request, response) => {
         try {
-            const email = request.user.email;
+            let { email } = request.user;
+            const { adminId, id } = request.user;
+
+            if (adminId && adminId !== id) {
+                const adminUser = await require("../dao/userDao").findById(adminId);
+                if (adminUser) {
+                    email = adminUser.email;
+                }
+            }
+
             const groups = await groupDao.getGroupByEmail(email);
             response.status(200).json(groups);
         } catch (error) {
+            console.log(error);
             response.status(500).json({ message: "Error fetching groups" });
         }
     },

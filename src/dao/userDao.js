@@ -6,6 +6,10 @@ const userDao = {
     return user;
   },
 
+  findById: async (id) => {
+    return await User.findById(id);
+  },
+
   create: async (userData) => {
     const newUser = new User(userData);
     try {
