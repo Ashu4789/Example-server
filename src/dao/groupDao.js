@@ -6,6 +6,10 @@ const groupDao = {
         return await newGroup.save();
     },
 
+    findById: async (id) => {
+        return await Group.findById(id);
+    },
+
     updateGroup: async (data) => {
         const { groupId, name, description, thumbnail, adminEmail, paymentStatus } = data;
 

@@ -10,7 +10,10 @@ router.use(authMiddleware.protect);
 router.get('/ping', (req, res) => res.json({ message: 'pong' }));
 
 router.post('/add', expenseController.addExpense);
-router.get('/group/:groupId', expenseController.getGroupExpenses);
+router.get('/group/:groupId', (req, res, next) => {
+    console.log("Expense Route Hit:", req.params.groupId);
+    next();
+}, expenseController.getGroupExpenses);
 router.get('/group/:groupId/summary', expenseController.getGroupSummary);
 router.post('/settle', expenseController.settleGroup);
 

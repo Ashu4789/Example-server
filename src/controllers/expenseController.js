@@ -34,6 +34,7 @@ const expenseController = {
 
     getGroupExpenses: async (request, response) => {
         try {
+            console.log("Fetching expenses for group:", request.params.groupId);
             const { groupId } = request.params;
             const expenses = await expenseDao.getExpensesByGroupId(groupId);
             response.status(200).json(expenses);

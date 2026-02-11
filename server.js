@@ -38,6 +38,6 @@ console.log('Registering /users routes');
 app.use('/users', rbacRoutes);
 console.log('Routes registered');
 
-app.listen(5001, () => {
-    console.log('Server is running on port 5001');
+app.listen(5002, () => {
+    console.log('Server is running on port 5002');
 });

@@ -20,7 +20,7 @@ const authController = {
 
     const isPasswordMatched = await bcrypt.compare(password, user?.password);
     if (user && isPasswordMatched) {
-      user.role = user.role ? user.role : ADMIN_ROLE;
+      user.role = user.role ? user.role.toLowerCase() : ADMIN_ROLE;
       user.adminId = user.adminId ? user.adminId : user._id;
 
       const token = jwt.sign({
@@ -67,7 +67,7 @@ const authController = {
       name: name,
       email: email,
       password: hashedPassword,
-      role: ADMIN_ROLE
+      role: ADMIN_ROLE.toLowerCase()
     })
       .then(u => {
         return response.status(200).json({
@@ -153,7 +153,7 @@ const authController = {
           name: name,
           email: email,
           googleId: googleId,
-          role: ADMIN_ROLE
+          role: ADMIN_ROLE.toLowerCase()
         });
       }
 
@@ -162,7 +162,7 @@ const authController = {
         email: user.email,
         googleId: user.googleId,
         id: user._id,
-        role: user.role ? user.role : ADMIN_ROLE,
+        role: user.role ? user.role.toLowerCase() : ADMIN_ROLE,
         adminId: user.adminId ? user.adminId : user._id,
       }, process.env.JWT_SECRET,
         { expiresIn: '1h' }

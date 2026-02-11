@@ -10,8 +10,10 @@ const authorize = (requiredPermission) => {
             return response.status(401).json({ message: 'Unauthorized access' });
         }
 
-        const userPermissions = permission[user.role] || [];
+        const role = user.role ? user.role.toLowerCase() : '';
+        const userPermissions = permission[role] || [];
         if (!userPermissions.includes(requiredPermission)) {
+            console.log(`Permission denied for user ${user.email} with role ${user.role}. Required: ${requiredPermission}`);
             return response.status(403).json({
                 message: 'Forbidden: Insufficient Permissions'
             });
