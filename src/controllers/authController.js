@@ -43,7 +43,10 @@ const authController = {
       });
       return response.status(200).json({
         message: 'User authenticated',
-        user: user
+        user: {
+          ...user.toObject(),
+          hasPassword: !!user.password
+        }
       });
     } else {
       return response.status(400).json({
@@ -74,7 +77,10 @@ const authController = {
 
       return response.status(200).json({
         message: 'User registered',
-        user: { id: user._id }
+        user: {
+          id: user._id,
+          hasPassword: true
+        }
       });
     } catch (error) {
       if (error.code === 'USER_EXIST') {
@@ -139,6 +145,27 @@ const authController = {
     }
   },
 
+  setPassword: async (request, response) => {
+    try {
+      const { password } = request.body;
+      const userId = request.user.id;
+
+      if (!password) {
+        return response.status(400).json({ message: "Password is required" });
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
+      await userDao.updatePassword(userId, hashedPassword);
+
+      return response.status(200).json({ message: "Password set successfully" });
+    } catch (error) {
+      console.error("Set Password Error:", error);
+      return response.status(500).json({ message: "Internal server error" });
+    }
+  },
+
   isUserLoggedIn: async (request, response) => {
     try {
       const token = request.cookies?.jwtToken;
@@ -149,14 +176,23 @@ const authController = {
         });
       }
 
-      jwt.verify(token, process.env.JWT_SECRET, (error, user) => {
+      jwt.verify(token, process.env.JWT_SECRET, async (error, decoded) => {
         if (error) {
           return response.status(401).json({
             message: 'Invalid token'
           });
         } else {
+          // Fetch fresh user data to get hasPassword status
+          const user = await userDao.findById(decoded.id);
+          if (!user) {
+            return response.status(401).json({ message: "User not found" });
+          }
+
           response.json({
-            user: user
+            user: {
+              ...user.toObject(),
+              hasPassword: !!user.password
+            }
           });
         }
 
@@ -226,7 +262,10 @@ const authController = {
       });
       return response.status(200).json({
         message: 'User authenticated',
-        user: user
+        user: {
+          ...user.toObject(),
+          hasPassword: !!user.password
+        }
       });
 
     } catch (error) {
